@@ -4,26 +4,30 @@ import {
   CustomersTableType,
   InvoiceForm,
   InvoicesTable,
+  Invoice,
   LatestInvoiceRaw,
   User,
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
+import { unstable_noStore as noStore } from 'next/cache';
+
 
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
+  noStore();
 
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
 
-    // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+    console.log('Fetching revenue data...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const data = await sql<Revenue>`SELECT * FROM revenue`;
 
-    // console.log('Data fetch completed after 3 seconds.');
+    console.log('Data fetch completed after 3 seconds.');
 
     return data.rows;
   } catch (error) {
@@ -33,7 +37,12 @@ export async function fetchRevenue() {
 }
 
 export async function fetchLatestInvoices() {
+  noStore();
+
   try {
+    console.log('Fetching latest invoices data...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     const data = await sql<LatestInvoiceRaw>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
@@ -52,7 +61,63 @@ export async function fetchLatestInvoices() {
   }
 }
 
+export async function fetchTotalPaidInvoices() {
+  noStore();
+
+  try {
+      const paidPromise = sql`
+        SELECT SUM(invoices.amount) AS "paid"
+        FROM invoices
+        WHERE invoices.status = 'paid'
+      `;
+      const data = await Promise.all([paidPromise]);
+      const finalPaid = formatCurrency(data[0].rows[0].paid ?? '0');
+      return finalPaid;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch the total paid invoices.');
+  }
+}
+
+export async function fetchTotalPendingInvoices() {
+  noStore();
+
+  try {
+      const pendingPromise = sql`
+        SELECT SUM(invoices.amount) AS "pending"
+        FROM invoices
+        WHERE invoices.status = 'pending'
+      `;
+      const data = await Promise.all([pendingPromise]);
+      const finalPending = formatCurrency(data[0].rows[0].pending ?? '0');
+      return finalPending;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch the total paid invoices.');
+  }
+}
+
+export async function fetchNumberInvoices() {
+  noStore();
+
+  try {
+      const countPromise = sql`
+        SELECT COUNT(*) AS "count"
+        FROM invoices
+      `;
+      const data = await Promise.all([countPromise]);
+      const finalCount = Number(data[0].rows[0].count ?? '0');
+      return finalCount;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch the total paid invoices.');
+  }
+}
+
+
 export async function fetchCardData() {
+  noStore();
+
   try {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
@@ -92,6 +157,8 @@ export async function fetchFilteredInvoices(
   query: string,
   currentPage: number,
 ) {
+  noStore();
+
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
@@ -124,7 +191,10 @@ export async function fetchFilteredInvoices(
 }
 
 export async function fetchInvoicesPages(query: string) {
+  noStore();
+
   try {
+
     const count = await sql`SELECT COUNT(*)
     FROM invoices
     JOIN customers ON invoices.customer_id = customers.id
@@ -145,6 +215,8 @@ export async function fetchInvoicesPages(query: string) {
 }
 
 export async function fetchInvoiceById(id: string) {
+  noStore();
+
   try {
     const data = await sql<InvoiceForm>`
       SELECT
@@ -170,6 +242,8 @@ export async function fetchInvoiceById(id: string) {
 }
 
 export async function fetchCustomers() {
+  noStore();
+
   try {
     const data = await sql<CustomerField>`
       SELECT
@@ -187,7 +261,27 @@ export async function fetchCustomers() {
   }
 }
 
+export async function fetchNumberCustomers() {
+  noStore();
+
+  try {
+    const countPromise = sql`
+      SELECT COUNT(*) as "count"
+      FROM customers
+    `;
+
+    const data = await Promise.all([countPromise]);
+    const customers = Number(data[0].rows[0].count ?? 0);
+    return customers;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch all customers.');
+  }
+}
+
 export async function fetchFilteredCustomers(query: string) {
+  noStore();
+
   try {
     const data = await sql<CustomersTableType>`
 		SELECT
@@ -221,6 +315,8 @@ export async function fetchFilteredCustomers(query: string) {
 }
 
 export async function getUser(email: string) {
+  noStore();
+
   try {
     const user = await sql`SELECT * FROM users WHERE email=${email}`;
     return user.rows[0] as User;
